@@ -1,0 +1,11 @@
+[project]
+name = "musigen-interp"
+version = "0.1.0"
+description = "Gen music model interpretability"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "setuptools>=80.9.0",
+    "torch==2.1.0",
+    "wheel>=0.45.1",
+]
