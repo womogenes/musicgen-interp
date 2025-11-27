@@ -5,7 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
+    "basic-pitch[tf]>=0.4.0",
     "hf-transfer>=0.1.9",
+    "ipykernel>=6.31.0",
+    "matplotlib>=3.9.4",
+    "pretty-midi>=0.2.11",
     "scipy>=1.13.1",
     "torch>=2.8.0",
     "transformers>=4.57.3",
