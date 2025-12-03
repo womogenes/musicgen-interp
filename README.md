@@ -10,3 +10,11 @@ https://musicgen.com
 ## Reference
 
 https://github.com/facebookresearch/audiocraft
+
+## MIDI
+
+`midi/make_dataset.py` generates audio files with basic prompts and puts them in `data/audio/*.wav` and `data/midi/*.midi`.
+
+## TODO
+
+Along with generating MIDI data, we must save activations (see source in `main2.py`).
