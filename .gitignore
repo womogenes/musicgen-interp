@@ -12,7 +12,9 @@ wheels/
 # Large files
 musicgen_activations.pt
 *.wav
+*.pt
 midi/data/audio/
 midi/data/midi/
+midi/data/activations/
 midi/bp_out/
 midi/outputs/
