@@ -65,8 +65,10 @@ PROMPTS = [
 
 AUDIO_DIR = Path("data/audio")
 MIDI_DIR = Path("data/midi")
+ACTIVATIONS_DIR = Path("data/activations")
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 MIDI_DIR.mkdir(parents=True, exist_ok=True)
+ACTIVATIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 processor = AutoProcessor.from_pretrained("facebook/musicgen-small")
 model = MusicgenForConditionalGeneration.from_pretrained(
@@ -77,12 +79,30 @@ model.eval()
 sampling_rate = model.config.audio_encoder.sampling_rate  # usually 32000
 print("Sampling rate:", sampling_rate)
 
+activations = {}
+
+def make_hook(name):
+    def hook(module, inp, out):
+        if isinstance(out, tuple):
+            out_t = out[0]
+        else:
+            out_t = out
+        activations.setdefault(name, []).append(out_t.detach().cpu())
+    return hook
+
+handles = []
+for name, module in model.named_modules():
+    if module.__class__.__name__ == "MusicgenDecoderLayer":
+        handles.append(module.register_forward_hook(make_hook(name)))
+
 BP_MODEL_PATH = str(ICASSP_2022_MODEL_PATH)
 
 def main():
     for i, prompt in enumerate(PROMPTS):
         clip_id = f"{i:03d}"
         print(f"\n=== {clip_id}: '{prompt}' ===")
+
+        activations.clear()
 
         inputs = processor(
             text=[prompt],
@@ -114,6 +134,13 @@ def main():
             model_or_model_path=BP_MODEL_PATH,
         )
         print(f"Ran BasicPitch; check {MIDI_DIR} for MIDI files")
+
+        act_path = ACTIVATIONS_DIR / f"{clip_id}.pt"
+        torch.save(activations, str(act_path))
+        print(f"Saved activations to {act_path}")
+
+    for h in handles:
+        h.remove()
 
     print("\nDone generating dataset.")
 
