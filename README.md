@@ -13,8 +13,10 @@ https://github.com/facebookresearch/audiocraft
 
 ## MIDI
 
-`midi/make_dataset.py` generates audio files with basic prompts and puts them in `data/audio/*.wav` and `data/midi/*.midi`.
+`midi/make_dataset.py` generates audio files with basic prompts and puts them in `data/audio/*.wav`, `data/midi/*.midi`, and `data/activations/*.pt`.
 
-## TODO
+## MusicGen Architecture
 
-Along with generating MIDI data, we must save activations (see source in `main2.py`).
+- EnCodec encoder: converts raw audio samples to "cookbook codec" (4 streams, each at 50 Hz with a dictionary of 2048 tokens).
+- Embedding layer: converts tokens into vectors (standard)
+- Transformer (decoder): turns tokens into next tokens (one for each of the 4 streams)

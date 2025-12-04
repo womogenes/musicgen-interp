@@ -8,6 +8,7 @@ dependencies = [
     "basic-pitch[tf]>=0.4.0",
     "hf-transfer>=0.1.9",
     "ipykernel>=6.31.0",
+    "librosa>=0.11.0",
     "matplotlib>=3.9.4",
     "pretty-midi>=0.2.11",
     "scipy>=1.13.1",
