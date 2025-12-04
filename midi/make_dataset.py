@@ -63,16 +63,16 @@ PROMPTS = [
     "piano piece starting soft and gradually getting louder",
 ]
 
-AUDIO_DIR = Path("data/audio")
-MIDI_DIR = Path("data/midi")
-ACTIVATIONS_DIR = Path("data/activations")
+AUDIO_DIR = Path("data-large/audio")
+MIDI_DIR = Path("data-large/midi")
+ACTIVATIONS_DIR = Path("data-large/activations")
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 MIDI_DIR.mkdir(parents=True, exist_ok=True)
 ACTIVATIONS_DIR.mkdir(parents=True, exist_ok=True)
 
-processor = AutoProcessor.from_pretrained("facebook/musicgen-small")
+processor = AutoProcessor.from_pretrained("facebook/musicgen-large")
 model = MusicgenForConditionalGeneration.from_pretrained(
-    "facebook/musicgen-small"
+    "facebook/musicgen-large"
 ).to(device)
 model.eval()
 
