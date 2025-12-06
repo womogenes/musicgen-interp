@@ -12,6 +12,7 @@ dependencies = [
     "matplotlib>=3.9.4",
     "pretty-midi>=0.2.11",
     "scipy>=1.13.1",
+    "seaborn>=0.13.2",
     "torch>=2.8.0",
     "transformers>=4.57.3",
 ]
