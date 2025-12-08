@@ -1,16 +1,3 @@
-"""
-Train a *single-layer* linear probe on MusicGen activations.
-
-- Labels are from PROMPTED KEY (not detected key).
-- Supports:
-    * Major vs minor (2 classes)
-    * 24-key classification (12 majors + 12 minors)
-
-- Uses:
-    * Class-balanced cross entropy
-    * Fixed random seed for reproducible splits
-"""
-
 import json
 from pathlib import Path
 import random
@@ -62,15 +49,14 @@ MODE_TO_IDX = {'major': 0, 'minor': 1}
 # -------------------------------------------------------
 class ActivationDataset(Dataset):
     """
-    Dataset of activations with key labels (PROMPTED KEY).
+    Dataset of activations with key labels (DETECTED KEY).
 
     Labels:
-      - If major_minor_only=True:   0 = major, 1 = minor based on prompted_key
-      - If major_minor_only=False:  24-way classification over KEY_NAMES based on prompted_key
+      - If major_minor_only=True:   0 = major, 1 = minor based on detected_key
+      - If major_minor_only=False:  24-way classification over KEY_NAMES based on detected_key
 
     confidence_threshold:
-      - If >0, we *optionally* filter using detected key confidence in key_info,
-        but labels are still based on prompted_key.
+      - If >0, filter samples by detected key confidence in key_info.
     """
     def __init__(
         self,
@@ -86,10 +72,10 @@ class ActivationDataset(Dataset):
         with open(metadata_path) as f:
             self.metadata = json.load(f)
 
-        # keep only samples with a valid prompted_key
+        # keep only samples with a valid detected_key
         self.metadata = [
             m for m in self.metadata
-            if m.get("prompted_key") in KEY_TO_IDX
+            if m.get("detected_key") in KEY_TO_IDX
         ]
 
         # Optional extra filter by detected key confidence (if present)
@@ -159,13 +145,13 @@ class ActivationDataset(Dataset):
 
             self.features.append(pooled)
 
-            # LABELS FROM PROMPTED KEY
-            prompted_key = meta["prompted_key"]
+            # LABELS FROM DETECTED KEY
+            detected_key = meta["detected_key"]
             if self.major_minor_only:
-                mode_str = "major" if prompted_key.endswith("_major") else "minor"
+                mode_str = "major" if detected_key.endswith("_major") else "minor"
                 self.labels.append(MODE_TO_IDX[mode_str])
             else:
-                self.labels.append(KEY_TO_IDX[prompted_key])
+                self.labels.append(KEY_TO_IDX[detected_key])
 
         self.features = torch.stack(self.features)  # [N, hidden_dim]
         self.labels = torch.tensor(self.labels, dtype=torch.long)  # [N]
@@ -360,7 +346,7 @@ def plot_confusion_matrix(cm, class_names, save_path=None):
 # -------------------------------------------------------
 def main():
     # ================= CONFIG =================
-    METADATA_PATH = "/home/harinit9/orcd/pool/musicgen-data/dataset_metadata.json"
+    METADATA_PATH = "/home/harinit9/orcd/pool/musicgen-data-nokey/dataset_metadata.json"
 
     # If None: use last layer; else put a specific one, e.g.:
     # LAYER_NAME = "decoder.model.decoder.layers.47"
@@ -374,15 +360,15 @@ def main():
     VAL_SIZE = 0.125  # of the remaining 0.8
 
     # === TOGGLE THIS ===
-    MAJOR_MINOR_ONLY = False  # True = 2 classes, False = 24 classes
+    MAJOR_MINOR_ONLY = True  # True = 2 classes, False = 24 classes
 
     # Output dir
     task_suffix = "major_minor" if MAJOR_MINOR_ONLY else "24key"
-    OUTPUT_DIR = Path(f"results_single_layer/{task_suffix}")
+    OUTPUT_DIR = Path(f"results_single_layer_nokey/{task_suffix}")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
-    print("Training Key Classification Probe (PROMPTED KEY LABELS)")
+    print("Training Key Classification Probe (DETECTED KEY LABELS)")
     print(f"Layer: {LAYER_NAME}")
     print(f"Task : {'Major/Minor' if MAJOR_MINOR_ONLY else '24-Key'}")
     print("=" * 60)

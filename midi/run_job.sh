@@ -10,4 +10,4 @@
 #SBATCH --error=logs/dl_%j.err
 
 cd /home/harinit9/musicgen-interp/midi
-uv run make_verified_dataset_nokey.py
+uv run dataset_scripts/make_verified_dataset_nokey.py

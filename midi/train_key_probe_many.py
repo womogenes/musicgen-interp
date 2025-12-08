@@ -13,6 +13,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.utils.class_weight import compute_class_weight
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -36,118 +37,39 @@ MODE_TO_IDX = {'major': 0, 'minor': 1}
 
 
 # ----------------------------------------------------------------------
-# Dataset
+# Dataset (loads from precomputed cache)
 # ----------------------------------------------------------------------
+FEATURE_CACHE_DIR = Path("feature_cache_nokey_0.2")
+
+
 class ActivationDataset(Dataset):
     """
-    Dataset of activations with key labels (PROMPTED KEY) - preloads everything into memory.
+    Dataset that loads precomputed pooled features from cache.
 
     Labels:
-      - If major_minor_only=True:   0 = major, 1 = minor based on prompted_key
-      - If major_minor_only=False:  24-way classification over KEY_NAMES based on prompted_key
-
-    confidence_threshold:
-      - If >0, we *optionally* filter using detected key confidence in key_info,
-        but labels are still based on prompted_key.
+      - If major_minor_only=True:   uses labels_mode2 (0 = major, 1 = minor)
+      - If major_minor_only=False:  uses labels_key24 (24-way classification)
     """
-    def __init__(
-        self,
-        metadata_path,
-        layer_name=None,
-        confidence_threshold=0.0,
-        major_minor_only=False,
-    ):
+    def __init__(self, features_path, major_minor_only=False):
+        data = torch.load(features_path, map_location="cpu")
+
+        if major_minor_only:
+            self.features = data["features"]
+            self.labels = data["labels_mode2"]
+            self.num_classes = 2
+            self.class_names = data["mode_names"]
+        else:
+            self.features = data["features"]
+            self.labels = data["labels_key24"]
+            self.num_classes = len(data["key_names"])
+            self.class_names = data["key_names"]
+
         self.major_minor_only = major_minor_only
-        self.num_classes = 2 if major_minor_only else NUM_KEYS
-        self.class_names = MODE_NAMES if major_minor_only else KEY_NAMES
-
-        with open(metadata_path) as f:
-            self.metadata = json.load(f)
-
-        # keep only samples with a valid prompted_key
-        self.metadata = [
-            m for m in self.metadata
-            if m.get("prompted_key") in KEY_TO_IDX
-        ]
-
-        # Optional extra filter by detected key confidence (if present)
-        if confidence_threshold > 0.0:
-            before = len(self.metadata)
-            filtered = []
-            for m in self.metadata:
-                ki = m.get("key_info", {})
-                conf = ki.get("confidence", 0.0)
-                if conf >= confidence_threshold:
-                    filtered.append(m)
-            self.metadata = filtered
-            print(
-                f"Applied confidence filter >= {confidence_threshold}, "
-                f"kept {len(self.metadata)}/{before} samples"
-            )
 
         task_name = "Major/Minor" if major_minor_only else "24-Key"
         print(f"Task: {task_name} classification ({self.num_classes} classes)")
-        print(f"Found {len(self.metadata)} usable samples")
-
-        # Load one activations file to discover available layers
-        first_act = torch.load(self.metadata[0]["activations_path"], map_location="cpu")
-
-        def get_layer_num(name):
-            parts = name.split(".")
-            for part in reversed(parts):
-                if part.isdigit():
-                    return int(part)
-            return 0
-
-        self.available_layers = sorted(first_act.keys(), key=get_layer_num)
-
-        if layer_name is None:
-            self.layer_name = self.available_layers[-1]  # use last layer
-            print(f"Auto-selected layer: {self.layer_name}")
-        else:
-            self.layer_name = layer_name
-            print(f"Using layer: {self.layer_name}")
-
-        print(f"Available layers: {len(self.available_layers)}")
-
-        # PRELOAD all data into memory
-        print("Preloading all activations into memory...")
-        self.features = []
-        self.labels = []
-
-        for i, meta in enumerate(self.metadata):
-            if (i + 1) % 50 == 0 or i == 0:
-                print(f"  Loading {i+1}/{len(self.metadata)}...")
-
-            act_path = meta["activations_path"]
-            activations = torch.load(act_path, map_location="cpu")
-
-            if self.layer_name not in activations:
-                # Skip if somehow missing
-                continue
-
-            layer_act_list = activations[self.layer_name]  # list of tensors
-
-            # Concatenate along first dim
-            layer_act = torch.cat(layer_act_list, dim=0)
-            hidden_dim = layer_act.shape[-1]
-            layer_act_flat = layer_act.reshape(-1, hidden_dim)
-            pooled = layer_act_flat.mean(dim=0)  # [hidden_dim]
-
-            self.features.append(pooled)
-
-            # LABELS FROM PROMPTED KEY
-            prompted_key = meta["prompted_key"]
-            if self.major_minor_only:
-                mode_str = "major" if prompted_key.endswith("_major") else "minor"
-                self.labels.append(MODE_TO_IDX[mode_str])
-            else:
-                self.labels.append(KEY_TO_IDX[prompted_key])
-
-        self.features = torch.stack(self.features)  # [N, hidden_dim]
-        self.labels = torch.tensor(self.labels, dtype=torch.long)  # [N]
-        print(f"Preloaded! Feature shape: {self.features.shape}")
-        print(f"Labels shape: {self.labels.shape}")
+        print(f"Loaded {len(self.labels)} samples from {features_path}")
+        print(f"Feature shape: {self.features.shape}")
 
     def __len__(self):
         return len(self.labels)
@@ -159,14 +81,18 @@ class ActivationDataset(Dataset):
 # ----------------------------------------------------------------------
 # Model + training utils
 # ----------------------------------------------------------------------
-class LinearProbe(nn.Module):
-    """Simple linear classifier"""
-    def __init__(self, input_dim, num_classes=NUM_KEYS):
+class MLPProbe(nn.Module):
+    """Small MLP with 1 hidden layer"""
+    def __init__(self, input_dim, num_classes=NUM_KEYS, hidden_dim=128):
         super().__init__()
-        self.linear = nn.Linear(input_dim, num_classes)
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, num_classes),
+        )
 
     def forward(self, x):
-        return self.linear(x)
+        return self.net(x)
 
 
 def train_probe(
@@ -175,12 +101,20 @@ def train_probe(
     input_dim,
     num_classes=NUM_KEYS,
     num_epochs=50,
-    lr=0.001,
+    lr=0.00001,
+    class_weights=None,
 ):
-    """Train a linear probe"""
-    model = LinearProbe(input_dim, num_classes=num_classes).to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    """Train an MLP probe with optional class-balanced loss."""
+    model = MLPProbe(input_dim, num_classes=num_classes).to(device)
+
+    if class_weights is not None:
+        class_weights = class_weights.to(device)
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
+        print("Using class-balanced cross entropy.")
+    else:
+        criterion = nn.CrossEntropyLoss()
+
+    optimizer = optim.SGD(model.parameters(), lr=lr)
 
     train_losses = []
     val_losses = []
@@ -211,6 +145,9 @@ def train_probe(
             for batch_x, batch_y in val_loader:
                 batch_x, batch_y = batch_x.to(device), batch_y.to(device)
                 logits = model(batch_x)
+                print(f"{batch_x=}")
+                print(f"{logits=}, {batch_y=}")
+
                 loss = criterion(logits, batch_y)
                 val_loss += loss.item()
                 preds = logits.argmax(dim=1).cpu().numpy()
@@ -355,13 +292,11 @@ def get_all_layer_names(metadata_path: str):
 # One experiment (one layer + one task)
 # ----------------------------------------------------------------------
 def run_experiment(
-    metadata_path: str,
     layer_name: str,
     major_minor_only: bool,
     output_dir: Path,
     num_epochs: int = 50,
     batch_size: int = 32,
-    confidence_threshold: float = 0.0,
 ):
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -371,10 +306,12 @@ def run_experiment(
     print(f"Output dir: {output_dir}")
     print("=" * 70)
 
+    # Load from precomputed cache
+    safe_name = layer_name.replace(".", "_")
+    features_path = FEATURE_CACHE_DIR / f"{safe_name}.pt"
+
     dataset = ActivationDataset(
-        metadata_path,
-        layer_name=layer_name,
-        confidence_threshold=confidence_threshold,
+        features_path=features_path,
         major_minor_only=major_minor_only,
     )
 
@@ -383,16 +320,28 @@ def run_experiment(
     input_dim = sample_x.shape[0]
     print(f"Input dimension: {input_dim}")
 
+    # Compute class weights
+    labels_np = dataset.labels.numpy()
+    classes = np.arange(dataset.num_classes)
+    class_weights_np = compute_class_weight(
+        class_weight="balanced",
+        classes=classes,
+        y=labels_np,
+    )
+    class_weights = torch.tensor(class_weights_np, dtype=torch.float)
+    print("Computed class weights:", class_weights_np)
+
     # Split dataset
     TEST_SIZE = 0.2
     VAL_SIZE = 0.125  # of the remaining 0.8
 
     indices = list(range(len(dataset)))
     train_val_idx, test_idx = train_test_split(
-        indices, test_size=TEST_SIZE, random_state=42
+        indices, test_size=TEST_SIZE, random_state=42, stratify=labels_np
     )
+    labels_train_val = labels_np[train_val_idx]
     train_idx, val_idx = train_test_split(
-        train_val_idx, test_size=VAL_SIZE, random_state=42
+        train_val_idx, test_size=VAL_SIZE, random_state=42, stratify=labels_train_val
     )
 
     print("\nDataset split:")
@@ -420,6 +369,14 @@ def run_experiment(
     num_classes = dataset.num_classes
     class_names = dataset.class_names
 
+    # Evaluate untrained model (epoch 0) for baseline confusion matrix
+    print("\nEvaluating untrained model (epoch 0)...")
+    untrained_model = MLPProbe(input_dim, num_classes=num_classes).to(device)
+    _, epoch0_cm, _, _ = evaluate_model(untrained_model, test_loader)
+    plot_confusion_matrix(
+        epoch0_cm, class_names, save_path=output_dir / "confusion_matrix_epoch0.png"
+    )
+
     print(f"\nTraining for {num_epochs} epochs...")
     model, history = train_probe(
         train_loader,
@@ -427,8 +384,12 @@ def run_experiment(
         input_dim,
         num_classes=num_classes,
         num_epochs=num_epochs,
-        lr=0.001,
+        lr=0.01,
+        class_weights=class_weights,
     )
+
+    print("\nEvaluating on train set...")
+    train_acc, train_cm, train_preds, train_labels = evaluate_model(model, train_loader)
 
     print("\nEvaluating on test set...")
     test_acc, cm, preds, labels = evaluate_model(model, test_loader)
@@ -438,6 +399,7 @@ def run_experiment(
     print("=" * 60)
     print(f"Layer: {layer_name}")
     print(f"Task : {task_name}")
+    print(f"Train Accuracy         : {train_acc:.4f}")
     print(f"Best Validation Accuracy: {history['best_val_acc']:.4f}")
     print(f"Test Accuracy          : {test_acc:.4f}")
     print(f"Random Baseline        : {1/num_classes:.4f}")
@@ -451,9 +413,11 @@ def run_experiment(
             "num_classes": num_classes,
             "major_minor_only": dataset.major_minor_only,
             "layer_name": layer_name,
+            "train_acc": train_acc,
             "test_acc": test_acc,
             "class_names": class_names,
             "history": history,
+            "class_weights": class_weights_np,
         },
         model_path,
     )
@@ -464,7 +428,10 @@ def run_experiment(
         history, num_classes, save_path=output_dir / "training_curves.png"
     )
     plot_confusion_matrix(
-        cm, class_names, save_path=output_dir / "confusion_matrix.png"
+        train_cm, class_names, save_path=output_dir / "confusion_matrix_train.png"
+    )
+    plot_confusion_matrix(
+        cm, class_names, save_path=output_dir / "confusion_matrix_test.png"
     )
 
     # Per-class accuracy
@@ -485,8 +452,8 @@ def run_experiment(
 # Main sweep
 # ----------------------------------------------------------------------
 def main():
-    METADATA_PATH = "/home/harinit9/orcd/pool/musicgen-data/dataset_metadata.json"
-    RESULTS_ROOT = Path("results_sweep")
+    METADATA_PATH = "/home/harinit9/orcd/pool/musicgen-data-nokey/dataset_metadata.json"
+    RESULTS_ROOT = Path("results_sweep_nokey_short_0.2")
     RESULTS_ROOT.mkdir(exist_ok=True)
 
     # Figure out all layer names from one activation file
@@ -530,7 +497,6 @@ def main():
     NUM_EPOCHS_MAJOR_MINOR = 50
     NUM_EPOCHS_24KEY = 50
     BATCH_SIZE = 32
-    CONFIDENCE_THRESHOLD = 0.0  # keep all
 
     # Run experiments
     for layer_name in selected_layers:
@@ -539,26 +505,22 @@ def main():
         # 1) Major/minor probe
         out_dir_mm = RESULTS_ROOT / f"layer_{layer_idx:02d}_major_minor"
         run_experiment(
-            metadata_path=METADATA_PATH,
             layer_name=layer_name,
             major_minor_only=True,
             output_dir=out_dir_mm,
             num_epochs=NUM_EPOCHS_MAJOR_MINOR,
             batch_size=BATCH_SIZE,
-            confidence_threshold=CONFIDENCE_THRESHOLD,
         )
 
-        # 2) 24-key probe
-        out_dir_24 = RESULTS_ROOT / f"layer_{layer_idx:02d}_24key"
-        run_experiment(
-            metadata_path=METADATA_PATH,
-            layer_name=layer_name,
-            major_minor_only=False,
-            output_dir=out_dir_24,
-            num_epochs=NUM_EPOCHS_24KEY,
-            batch_size=BATCH_SIZE,
-            confidence_threshold=CONFIDENCE_THRESHOLD,
-        )
+        # # 2) 24-key probe
+        # out_dir_24 = RESULTS_ROOT / f"layer_{layer_idx:02d}_24key"
+        # run_experiment(
+        #     layer_name=layer_name,
+        #     major_minor_only=False,
+        #     output_dir=out_dir_24,
+        #     num_epochs=NUM_EPOCHS_24KEY,
+        #     batch_size=BATCH_SIZE,
+        # )
 
 
 if __name__ == "__main__":

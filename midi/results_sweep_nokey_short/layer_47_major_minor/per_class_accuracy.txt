@@ -1,0 +1,3 @@
+Per-class accuracy:
+major       : 0.000 (106 samples)
+minor       : 1.000 (94 samples)
