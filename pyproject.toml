@@ -16,3 +16,8 @@ dependencies = [
     "torch>=2.8.0",
     "transformers>=4.57.3",
 ]
+
+[tool.uv.workspace]
+members = [
+    "diffrhythm_interp",
+]

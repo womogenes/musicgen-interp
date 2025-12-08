@@ -19,3 +19,5 @@ midi/bp_out/
 midi/outputs/
 midi/data*/
 midi/logs/
+
+diffrhythm_interp/pretrained/

@@ -44,7 +44,7 @@ def main():
     cfm, tokenizer, muq, vae = prepare_model(max_frames, device)
 
     # -----------------------------------------------------------------
-    # 4. Lyrics (LRC) – use their example file
+    # 4. Lyrics (L RC) – use their example file
     #    If you want instrumental only, set lrc = "" instead.
     # -----------------------------------------------------------------
     lrc_path = INFER_DIR / "example" / "eg_en_full.lrc"
@@ -102,7 +102,6 @@ def main():
 
     # Take one sample from the batch (here batch_infer_num=1 so it's just that one)
     song = random.choice(generated_songs)
-
     # -----------------------------------------------------------------
     # 8. Save to WAV
     # -----------------------------------------------------------------
