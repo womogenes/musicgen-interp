@@ -19,3 +19,6 @@ midi/bp_out/
 midi/outputs/
 midi/data*/
 midi/logs/
+
+mustango/
+ACE-Step/
