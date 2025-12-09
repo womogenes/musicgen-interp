@@ -19,7 +19,6 @@ from infer_utils import (
     prepare_model,
     get_lrc_token,
     get_style_prompt,
-    get_negative_style_prompt,
     get_reference_latent,
 )
 
@@ -69,6 +68,14 @@ def register_dit_block_hooks(cfm, also_print=False):
                 print(f"Registered DiT block hook on: {full_name}")
 
 
+def key_to_tag(key_str: str) -> str:
+    """
+    Turn a key string like 'C# major' or 'F minor' into something safe for filenames:
+    'Cs_major', 'F_minor', etc.
+    """
+    return key_str.replace("#", "s").replace(" ", "_")
+
+
 def main():
     # -----------------------------------------------------------------
     # 2. Basic config: device + duration
@@ -94,33 +101,15 @@ def main():
     register_dit_block_hooks(cfm, also_print=True)
 
     # -----------------------------------------------------------------
-    # 4. Lyrics (LRC) – use their example file
-    #    If you want instrumental only, set lrc = "" instead.
+    # 4. Instrumental only: no lyrics (avoids TTS / espeak, and helps keep it piano-only)
     # -----------------------------------------------------------------
-    lrc_path = INFER_DIR / "example" / "eg_en_full.lrc"
-    if lrc_path.is_file():
-        with open(lrc_path, "r", encoding="utf-8") as f:
-            lrc = f.read()
-    else:
-        # Fallback: no lyrics → effectively instrumental mode
-        lrc = ""
-
+    lrc = ""
     lrc_prompt, start_time, end_frame, song_duration = get_lrc_token(
         max_frames, lrc, tokenizer, audio_length, device
     )
 
     # -----------------------------------------------------------------
-    # 5. Style prompt
-    #    Change this string to steer genre / mood / rough "key".
-    # -----------------------------------------------------------------
-    style_prompt = get_style_prompt(
-        muq,
-        prompt="bright orchestral pop in C major, uplifting, piano and strings",
-    )
-    negative_style_prompt = get_negative_style_prompt(device)
-
-    # -----------------------------------------------------------------
-    # 6. Latent prompt for editing / continuation.
+    # 5. Latent prompt for editing / continuation.
     #    For simple generation (no editing), use edit=False and no ref song.
     # -----------------------------------------------------------------
     latent_prompt, pred_frames = get_reference_latent(
@@ -133,48 +122,94 @@ def main():
     )
 
     # -----------------------------------------------------------------
-    # 7. Run DiffRhythm inference.
-    #    Hooks on DiT blocks will fire during the internal CFM forward calls.
+    # 6. Define all keys (12 major + 12 minor)
     # -----------------------------------------------------------------
-    generated_songs = infer.inference(
-        cfm_model=cfm,
-        vae_model=vae,
-        cond=latent_prompt,
-        text=lrc_prompt,
-        duration=end_frame,
-        style_prompt=style_prompt,
-        negative_style_prompt=negative_style_prompt,
-        start_time=start_time,
-        pred_frames=pred_frames,
-        batch_infer_num=1,
-        song_duration=song_duration,
-        chunked=True,  # reduce VRAM usage; recommended for 8GB cards
-    )
-
-    # Take one sample from the batch (here batch_infer_num=1 so it's just that one)
-    song = random.choice(generated_songs)
+    note_names = ["C", "C#", "D", "D#", "E", "F",
+                  "F#", "G", "G#", "A", "A#", "B"]
+    all_keys = []
+    for note in note_names:
+        all_keys.append(f"{note} major")
+        all_keys.append(f"{note} minor")
 
     # -----------------------------------------------------------------
-    # 8. Save audio + activations
+    # 7. Output directory
     # -----------------------------------------------------------------
-    output_dir = REPO_ROOT / "outputs"
-    output_dir.mkdir(exist_ok=True)
+    output_dir = REPO_ROOT / "outputs_piano_all_keys"
+    output_dir.mkdir(exist_ok=True, parents=True)
 
-    # Save WAV
-    output_path = output_dir / "diffrhythm_output.wav"
-    torchaudio.save(str(output_path), song, sample_rate=44100)
-    print(f"Saved DiffRhythm output to: {output_path}")
+    # -----------------------------------------------------------------
+    # 8. Loop over every key and generate a solo piano piece
+    # -----------------------------------------------------------------
+    global ACTIVATIONS
 
-    # Save DiT block activations
-    activations_path = output_dir / "dit_block_activations.pt"
-    torch.save(ACTIVATIONS, activations_path)
-    print(f"Saved DiT block activations to: {activations_path}")
+    for key_str in all_keys:
+        print(f"\n=== Generating solo piano in {key_str} ===")
+        ACTIVATIONS = {}  # reset per key so activations file is per-key
 
-    # Optional: quick summary
-    print("Captured DiT activations (layer -> list of shapes):")
-    for name, tensors in ACTIVATIONS.items():
-        shapes = [tuple(t.shape) for t in tensors]
-        print(f"  {name}: {shapes}")
+        # -----------------------------
+        # Manual positive style prompt
+        # -----------------------------
+        positive_prompt_text = (
+            f"solo piano piece in {key_str}, with flowing melody and gentle chords, "
+            "no other instruments, rich but clear harmony, expressive and musical"
+        )
+
+        # -----------------------------
+        # Manual negative style prompt
+        # (things we explicitly DO NOT want)
+        # -----------------------------
+        negative_prompt_text = (
+            "drums, percussion, bass, guitar, strings, brass, woodwinds, synth, pad, "
+            "choir, vocals, voice, ambient noise, sound effects, reverb wash, distortion"
+        )
+
+        # Use the same helper encoder for both positive and negative prompts,
+        # but with text that we fully control.
+        style_prompt = get_style_prompt(
+            muq,
+            prompt=positive_prompt_text,
+        )
+        negative_style_prompt = get_style_prompt(
+            muq,
+            prompt=negative_prompt_text,
+        )
+
+        # Run DiffRhythm inference
+        generated_songs = infer.inference(
+            cfm_model=cfm,
+            vae_model=vae,
+            cond=latent_prompt,
+            text=lrc_prompt,  # instrumental since lrc == ""
+            duration=end_frame,
+            style_prompt=style_prompt,
+            negative_style_prompt=negative_style_prompt,
+            start_time=start_time,
+            pred_frames=pred_frames,
+            batch_infer_num=1,
+            song_duration=song_duration,
+            chunked=True,  # reduce VRAM usage; recommended for 8GB cards
+        )
+
+        # Take the first (and only) generated sample
+        song = generated_songs[0]
+
+        key_tag = key_to_tag(key_str)
+
+        # Save WAV
+        wav_path = output_dir / f"diffrhythm_piano_{key_tag}.wav"
+        torchaudio.save(str(wav_path), song, sample_rate=44100)
+        print(f"Saved DiffRhythm piano output for {key_str} to: {wav_path}")
+
+        # Save DiT block activations for this key
+        activations_path = output_dir / f"dit_block_activations_{key_tag}.pt"
+        torch.save(ACTIVATIONS, activations_path)
+        print(f"Saved DiT block activations for {key_str} to: {activations_path}")
+
+        # Optional: quick summary
+        print("Captured DiT activations (layer -> list of shapes):")
+        for name, tensors in ACTIVATIONS.items():
+            shapes = [tuple(t.shape) for t in tensors]
+            print(f"  {name}: {shapes}")
 
 
 if __name__ == "__main__":
