@@ -54,7 +54,8 @@ def train_linear_probe(
 
     # Normalize per feature
     logger.info("Normalizing...")
-    X_norm = StandardScaler().fit_transform(X_pooled)
+    scaler = StandardScaler()
+    X_norm = scaler.fit_transform(X_pooled)
 
     # Run PCA to reduce dimensionality
     from sklearn.decomposition import PCA
@@ -87,7 +88,7 @@ def train_linear_probe(
 
         if not train:
             # Used in production; return regression coefs
-            return reg
+            yield reg, pca, scaler
 
         # Plot confusion matrix
         from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
