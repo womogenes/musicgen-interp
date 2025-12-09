@@ -22,5 +22,11 @@ midi/logs/
 
 diffrhythm_interp/pretrained/
 diffrhythm_interp/DiffRhythm/outputs_piano_all_keys/
+diffrhythm_interp/logs/
+diffrhythm_interp/scripts/logs/
+
+mustango/
+
+notebooks/sae/checkpoints/
 
 *.out
