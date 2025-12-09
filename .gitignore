@@ -21,3 +21,4 @@ midi/data*/
 midi/logs/
 
 diffrhythm_interp/pretrained/
+diffrhythm_interp/DiffRhythm/outputs_piano_all_keys/

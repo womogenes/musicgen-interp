@@ -47,14 +47,7 @@ def main():
     # 4. Lyrics (L RC) – use their example file
     #    If you want instrumental only, set lrc = "" instead.
     # -----------------------------------------------------------------
-    lrc_path = INFER_DIR / "example" / "eg_en_full.lrc"
-    if lrc_path.is_file():
-        with open(lrc_path, "r", encoding="utf-8") as f:
-            lrc = f.read()
-    else:
-        # Fallback: no lyrics → effectively instrumental mode
-        lrc = ""
-
+    lrc = ""
     lrc_prompt, start_time, end_frame, song_duration = get_lrc_token(
         max_frames, lrc, tokenizer, audio_length, device
     )
@@ -65,7 +58,7 @@ def main():
     # -----------------------------------------------------------------
     style_prompt = get_style_prompt(
         muq,
-        prompt="bright orchestral pop in C major, uplifting, piano and strings"
+        prompt="heartfelt, classical, piano, key: C major"
     )
     negative_style_prompt = get_negative_style_prompt(device)
 
