@@ -52,6 +52,8 @@ def train_linear_probe(
     else:
         X_pooled = np.mean(acts, axis=1)
 
+    X_pooled = acts.reshape(acts.shape[0], -1)
+
     # Normalize per feature
     logger.info("Normalizing...")
     scaler = StandardScaler()
