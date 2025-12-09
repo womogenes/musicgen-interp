@@ -19,7 +19,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger()
-logger.info("hi")  # Same clean output
 
 # %%
 # Constants
@@ -40,6 +39,8 @@ def train_linear_probe(
     layer_idx: int,
     pca_dim: int,
     pooling_strat: str,
+    test_size: float = 0.3,
+    train: bool = True,
 ):
     acts = np.load(ACTS_BY_LAYER_PATH / f"layer_{layer_idx:02d}.npy")
     logger.info(f"Logistic regression on {layer_idx=}")
@@ -69,11 +70,11 @@ def train_linear_probe(
     # Make train/test splits
     logger.info("Making test splits...")
 
-    for _ in range(1024):
+    for _ in range(1024 if train else 1):
         from sklearn.model_selection import train_test_split
         X_train, X_test, y_train, y_test = train_test_split(
             X_pca, y_raw,
-            test_size=0.3,
+            test_size=test_size,
             stratify=y_raw,
         )
 
@@ -83,6 +84,10 @@ def train_linear_probe(
         # logger.info("Fitting logistic regression...")
         reg = LogisticRegression()
         reg.fit(X_train, y_train)
+
+        if not train:
+            # Used in production; return regression coefs
+            return reg
 
         # Plot confusion matrix
         from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
@@ -105,83 +110,85 @@ def train_linear_probe(
         yield train_acc, test_acc
 
 # %%
-records = []
 
-# %%
-# logger.setLevel("ERROR")
-logger.setLevel("DEBUG")
+if __name__ == "__main__":
+    records = []
 
-for layer_idx in range(48):
-    accs = list(train_linear_probe(layer_idx, 128, "max"))
-    records.append((layer_idx, accs))
+    # %%
+    # logger.setLevel("ERROR")
+    logger.setLevel("DEBUG")
 
-# %%
-train_acc = []
-test_acc = []
+    for layer_idx in range(48):
+        accs = list(train_linear_probe(layer_idx, 128, "max", train=True))
+        records.append((layer_idx, accs))
 
-for idx, samples in records:
-    for train, test in samples:
-        train_acc.append((idx, train))
-        test_acc.append((idx, test))
+    # %%
+    train_acc = []
+    test_acc = []
 
-# print(records)
+    for idx, samples in records:
+        for train, test in samples:
+            train_acc.append((idx, train))
+            test_acc.append((idx, test))
 
-# %%
-import numpy as np
-import matplotlib.pyplot as plt
-from collections import defaultdict
-from scipy import stats
+    # print(records)
 
-# Organize data by transformer block index
-train_data = defaultdict(list)
-test_data = defaultdict(list)
+    # %%
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from collections import defaultdict
+    from scipy import stats
 
-for idx, samples in records:
-    for train, test in samples:
-        train_data[idx].append(train)
-        test_data[idx].append(test)
+    # Organize data by transformer block index
+    train_data = defaultdict(list)
+    test_data = defaultdict(list)
 
-# Compute mean and 95% CI for each block
-train_means = []
-train_cis = []
-test_means = []
-test_cis = []
-indices = sorted(train_data.keys())
+    for idx, samples in records:
+        for train, test in samples:
+            train_data[idx].append(train)
+            test_data[idx].append(test)
 
-for idx in indices:
-    train_vals = np.array(train_data[idx])
-    test_vals = np.array(test_data[idx])
+    # Compute mean and 95% CI for each block
+    train_means = []
+    train_cis = []
+    test_means = []
+    test_cis = []
+    indices = sorted(train_data.keys())
+
+    for idx in indices:
+        train_vals = np.array(train_data[idx])
+        test_vals = np.array(test_data[idx])
+        
+        n_train = len(train_vals)
+        n_test = len(test_vals)
+        
+        # Mean
+        train_mean = np.mean(train_vals)
+        test_mean = np.mean(test_vals)
+        
+        # 95% CI using t-distribution
+        train_ci = stats.t.ppf(0.975, n_train-1) * np.std(train_vals, ddof=1) / np.sqrt(n_train)
+        test_ci = stats.t.ppf(0.975, n_test-1) * np.std(test_vals, ddof=1) / np.sqrt(n_test)
+        
+        train_means.append(train_mean)
+        train_cis.append(train_ci)
+        test_means.append(test_mean)
+        test_cis.append(test_ci)
+
+        print(f"layer {idx:02d} | train: {train_mean*100:.2f}%, train: {test_mean*100:.2f}%")
+
+    logger.setLevel("INFO")
+
+    # Plot with 95% CI error bars
+    plt.errorbar(indices, train_means, yerr=train_cis, fmt='o', label="Train (95% CI)")
+    plt.errorbar(indices, test_means, yerr=test_cis, fmt='o', label="Test (95% CI)")
+    plt.xlabel("Transformer block index")
+    plt.ylabel("Accuracy")
+    plt.title("Linear probe (95% CI)")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    import time
+    plt.savefig(f"/home/wyf/musicgen-interp/notebooks/logs/{time.time()}.png")
     
-    n_train = len(train_vals)
-    n_test = len(test_vals)
-    
-    # Mean
-    train_mean = np.mean(train_vals)
-    test_mean = np.mean(test_vals)
-    
-    # 95% CI using t-distribution
-    train_ci = stats.t.ppf(0.975, n_train-1) * np.std(train_vals, ddof=1) / np.sqrt(n_train)
-    test_ci = stats.t.ppf(0.975, n_test-1) * np.std(test_vals, ddof=1) / np.sqrt(n_test)
-    
-    train_means.append(train_mean)
-    train_cis.append(train_ci)
-    test_means.append(test_mean)
-    test_cis.append(test_ci)
-
-    print(f"layer {idx:02d} | train: {train_mean*100:.2f}%, train: {test_mean*100:.2f}%")
-
-logger.setLevel("INFO")
-
-# Plot with 95% CI error bars
-plt.errorbar(indices, train_means, yerr=train_cis, fmt='o', label="Train (95% CI)")
-plt.errorbar(indices, test_means, yerr=test_cis, fmt='o', label="Test (95% CI)")
-plt.xlabel("Transformer block index")
-plt.ylabel("Accuracy")
-plt.title("Linear probe (95% CI)")
-plt.legend()
-plt.grid()
-plt.show()
-
-import time
-plt.savefig(f"/home/wyf/musicgen-interp/notebooks/logs/{time.time()}.png")
- 
