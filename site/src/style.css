@@ -26,27 +26,30 @@ body {
 }
 
 #toc a.toc-level-2 {
-  @apply pl-3 py-1;
+  @apply pl-3 py-2;
 }
 
 #toc a.toc-level-3 {
-  @apply pl-6 text-xs;
+  @apply pl-6 text-xs py-2;
 }
 
 #content {
-  @apply ml-64 max-w-3xl p-8 prose prose-neutral;
+  @apply ml-64 max-w-2xl p-8 prose prose-neutral;
 }
 
 .header-anchor {
-  @apply text-gray-400 no-underline;
+  @apply no-underline!;
   opacity: 1 !important;
+  color: inherit !important;
 }
 
-.header-anchor:before {
-  content: '# ';
+.header-anchor:after {
+  content: ' #';
+  color: #999;
   opacity: 0;
+  margin-left: 0.5rem;
 }
 
-.header-anchor:hover:before {
-  opacity: 1;
+.header-anchor:hover:after {
+  opacity: 0r1;
 }
