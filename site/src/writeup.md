@@ -62,7 +62,7 @@ We trained a TopK SAE on max-pooled layer 22 activations with 8,192 features (4�
 
 ### Activation Steering Protocol
 
-From probe weights $W \in \mathbb{R}^{2 \times 128}$ (major=row 0, minor=row 1), we extracted $w_\text{minor}^\text{PCA} = W[1,:] - W[0,:]$ and projected through PCA: $v_\text{minor} = P_{128} \cdot w_\text{minor}^\text{PCA} \in \mathbb{R}^{2048}$. During generation, we modified layer 22 activations: $H_{22}'[t,:] = H_{22}[t,:] + \alpha \cdot v_\text{minor}$ for steering strength $\alpha \in [-20, 20]$.
+From probe weights $W \in \mathbb{R}^{2 \times 128}$ (major=row 0, minor=row 1), we extracted $$w_\text{minor}^\text{PCA} = W[1,:] - W[0,:]$$ and projected through PCA: $$v_\text{minor} = P_{128} \cdot w_\text{minor}^\text{PCA} \in \mathbb{R}^{2048}.$$ During generation, we modified layer 22 activations: $$H_{22}'[t,:] = H_{22}[t,:] + \alpha \cdot v_\text{minor}$$ for steering strength $\alpha \in [-20, 20]$.
 
 Control experiments replaced $v_\text{minor}$ with random unit vectors and applied steering at non-optimal layers (5 and 45) to verify specificity.
 
@@ -73,39 +73,42 @@ Control experiments replaced $v_\text{minor}$ with random unit vectors and appli
 MusicGen accuracy rose from near-chance in early layers (layer 0: 56.3%) to peak at layer 21 with 62.1% ± 0.5% test accuracy, then declined toward output (layer 47: 57.2%). DiffRhythm showed identical patterns, peaking at block 12 with 59.3% ± 0.6%.
 
 ![Linear probe accuracy across DiffRhythm blocks with 95% CI. Peak at block 12 (59.3%), above 50% baseline.](../public/linearprobedr.png)
-*Figure 1: DiffRhythm layer-wise accuracy shows the characteristic middle-layer bump observed in NLP interpretability.*
 
-There is statistical significance. Computing $t = (\bar{a} - 0.5)/(s/\sqrt{n})$ against 50% chance yields $t \approx 75.2$ for MusicGen and $t \approx 48.1$ for DiffRhythm, corresponding to $p < 10^{-150}$. As shown above, these are not sampling artifacts.
+_Figure 1: DiffRhythm layer-wise accuracy shows the characteristic middle-layer bump observed in NLP interpretability._
 
-| Property | MusicGen | DiffRhythm |
-|----------|----------|------------|
-| Architecture | Autoregressive transformer | Diffusion transformer |
-| Peak accuracy | 62.1% ± 0.5% | 59.3% ± 0.6% |
-| Peak layer (absolute) | 21/48 | 12/24 |
-| Peak layer (relative) | 44% | 50% |
-| $t$-statistic | 75.2 | 48.1 |
+There is statistical significance. Computing $t = (\bar{a} - 0.5)/(s/\sqrt{n})$ against 50% chance yields $t \approx 75.2$ for MusicGen and $t \approx 48.1$ for DiffRhythm$. As shown above, these are not sampling artifacts.
 
-*Table 1: Cross-architecture comparison reveals similar tonal encoding despite different generation mechanisms.*
+| Property              | MusicGen                   | DiffRhythm            |
+| --------------------- | -------------------------- | --------------------- |
+| Architecture          | Autoregressive transformer | Diffusion transformer |
+| Peak accuracy         | 62.1% ± 0.5%               | 59.3% ± 0.6%          |
+| Peak layer (absolute) | 21/48                      | 12/24                 |
+| Peak layer (relative) | 44%                        | 50%                   |
+| $t$-statistic         | 75.2                       | 48.1                  |
+
+_Table 1: Cross-architecture comparison reveals similar tonal encoding despite different generation mechanisms._
 
 PCA visualization of peak-layer activations shows partial but incomplete separation between major and minor, consistent with above-chance but imperfect accuracy.
 
 ![PCA of MusicGen layer 22 activations by mode (major=blue, minor=red).](../public/pcamode.png)
-*Figure 2: Partial separation explains the 62% accuracy ceiling—substantial overlap prevents perfect classification.*
+
+_Figure 2: Partial separation explains the 62% accuracy ceiling—substantial overlap prevents perfect classification._
 
 ![PCA of DiffRhythm block 12 activations by mode.](../public/pcakeydr.png)
-*Figure 3: Similar PCA structure across architectures supports cross-architecture consistency.*
+
+_Figure 3: Similar PCA structure across architectures supports cross-architecture consistency._
 
 ### Sparse Autoencoder Analysis
 
-The SAE achieved 0.0188 reconstruction MSE with 99.22% sparsity. However, 8,061 of 8,192 features (98.4%) remained dead—never activated on any input. For surviving features, we examined key distributions among top-20 activating clips. No feature showed significant mode correlation; distributions matched the global dataset.
+The SAE achieved 0.0188 reconstruction MSE with 99.22% sparsity. However, 8,061 of 8,192 features (98.4%) remained dead (i.e. never activated on any input). For surviving features, we examined key distributions among the top 20 activating clips. No feature showed significant mode correlation; distributions matched the global dataset.
 
-| Metric | Value |
-|--------|-------|
-| Dictionary size | 8,192 |
-| Dead features | 8,061 (98.4%) |
-| Reconstruction MSE | 0.0188 |
+| Metric             | Value         |
+| ------------------ | ------------- |
+| Dictionary size    | 8,192         |
+| Dead features      | 8,061 (98.4%) |
+| Reconstruction MSE | 0.0188        |
 
-*Table 2: SAE statistics reveal catastrophic underutilization of dictionary capacity.*
+_Table 2: SAE statistics reveal catastrophic underutilization of dictionary capacity._
 
 This failure reflects data regime mismatch. Language SAEs train on billions of diverse tokens; our SAE saw 344 usable clips from a narrow piano distribution. The 8,192-feature dictionary was overparameterized by ~20×, and homogeneous inputs provided insufficient diversity.
 
@@ -116,9 +119,10 @@ At $\alpha = 15$, 23% of originally-major clips were detected as minor. Key conf
 Controls confirmed specificity. Random unit vectors produced < 2% flip rate across all $\alpha$. Steering at layer 5 or 45 produced < 5% flip rate, far less than the 23% at layer 22. This rules out generic perturbation artifacts.
 
 ![Steering vector weight distribution across 2048 dimensions.](../public/steering.png)
-*Figure 4: Non-uniform weights indicate mode information is concentrated in specific dimensions.*
 
-**Audio Examples:** Steering effects across different $\alpha$ values. Each clip shows the progression from major-biased (α=-15) through baseline (α=0) to minor-biased (α=+15).
+_Figure 4: Non-uniform weights indicate mode information is concentrated in specific dimensions._
+
+**Audio Examples:** Steering effects across different $\alpha$ values. Each clip shows the progression from major-biased ($\alpha=-15$) through baseline ($\alpha=0$) to minor-biased ($\alpha=+15$).
 
 <details class="my-4">
 <summary class="cursor-pointer font-semibold">Clip 0034</summary>
@@ -157,13 +161,13 @@ Controls confirmed specificity. Random unit vectors produced < 2% flip rate acro
 
 The central finding is that tonal encoding is architecturally invariant. Despite different generation mechanisms (autoregressive token prediction versus parallel latent denoising) both models exhibit the same pattern: mode peaks at 44–50% depth and declines toward output. This convergence suggests distinguishing major from minor is useful for predicting musical continuations regardless of generation paradigm, consistent with the hypothesis that models learn functionally relevant representations.
 
-Peak accuracies of 62% and 59% may seem modest, but context matters. Our labels come from `librosa` (~70% accurate), creating a supervision ceiling. Some clips are genuinely ambiguous between relative major/minor. And mode may be partially nonlinear. 
+Peak accuracies of 62% and 59% may seem modest, but context matters. Our labels come from `librosa` (~70% accurate), creating a supervision ceiling. Some clips are genuinely ambiguous between relative major/minor. And mode may be partially nonlinear.
 
 The layer-wise "bump" mirrors NLP findings [(Tenney et al., 2019)](https://arxiv.org/abs/1905.05950). Early layers process local features; middle layers form abstract concepts including key and mode; late layers prepare output format. This identifies middle layers as optimal intervention targets for controllable generation.
 
 The 98% dead feature rate establishes that language SAE methods cannot be naively transferred to audio. Our 344 clips versus 8,192 features represents ~20× overparameterization. Future audio SAEs require either much larger datasets (10,000+ diverse clips) or architectures designed for small-data regimes.
 
-These findings have practical implications for controllable music generation. The existence of linearly decodable tonal representations suggests that lightweight, training-free control is feasible. Rather than fine-tuning models on curated datasets or engineering complex conditioning mechanisms, simple activation steering may provide a path to coarse stylistic control with minimal computational overhead. For creative applications, this could enable rapid prototyping of controllable interfaces—a "mood slider" that adjusts brightness or darkness without retraining.
+These findings have practical implications for controllable music generation. The existence of linearly decodable tonal representations suggests that lightweight, training-free control is feasible. Rather than fine-tuning models on curated datasets or engineering complex conditioning mechanisms, simple activation steering may provide a path to coarse stylistic control with minimal computational overhead. For creative applications, this could enable rapid prototyping of controllable interfaces, for instance in the form of a "mood slider" that adjusts brightness or darkness without retraining.
 
 The cross-architecture consistency has broader implications. If tonal representations emerge similarly across MusicGen and DiffRhythm despite different architectures and training objectives, interpretability tools may transfer across the diverse ecosystem of music generation models. Analysis pipelines developed for one model could apply to new releases, reducing the effort required to understand and control each new system.
 
@@ -181,15 +185,15 @@ Our temporal pooling discards fine-grained structure. By max-pooling across time
 
 Steering evaluation relies on automatic detection rather than human listening studies. The 23% flip rate measures changes in `librosa` output; human perception may differ. Formal studies with musically trained participants would strengthen claims about perceptual impact.
 
-The steering direction is entangled with correlated attributes—we cannot cleanly isolate mode from timbre, dynamics, or harmonic complexity. This entanglement may be intrinsic to how music works, but limits control precision.
+The steering direction is entangled with correlated attributes. We cannot cleanly isolate mode from timbre, dynamics, or harmonic complexity. This entanglement may be intrinsic to how music works, but limits control precision.
 
-Finally, we study only two models. Additional architectures would strengthen generalization claims.
+Finally, we study only two models. Additional architectures would strengthen our claims.
 
 ## Future Work
 
 Human-annotated labels for a subset of clips would establish cleaner ground truth and sharper accuracy estimates. Formal listening studies could quantify perceptual steering impact.
 
-Scaling SAE training to 10,000+ diverse clips spanning multiple instruments and genres may enable feature discovery. Alternatively, architectures designed for small-data regimes—gated SAEs, β-VAEs—may work with current data.
+Scaling SAE training to 10,000+ diverse clips spanning multiple instruments and genres may enable feature discovery. Alternatively, architectures designed for small-data regimes—such as gated SAEs, $\beta$-VAEs—may work with current data.
 
 Per-token or per-frame probing could reveal temporal dynamics: when is key established, how is it maintained? Attention analysis might identify heads specializing in tonal processing.
 
@@ -201,11 +205,10 @@ Cross-model transfer experiments would test whether steering vectors from MusicG
 
 We investigated whether text-to-music models encode major/minor mode and whether this encoding supports controllable generation. Our experiments provide affirmative answers while revealing important limitations.
 
-The probing results establish that mode is linearly decodable from intermediate activations of both MusicGen (62.1% at layer 21/48) and DiffRhythm (59.3% at block 12/24), with statistical significance exceeding $p < 10^{-150}$ across 1,024 bootstrap samples. The characteristic middle-layer peak occurs at remarkably similar relative depths—44% for MusicGen and 50% for DiffRhythm—despite radically different architectures. Autoregressive token prediction and parallel latent denoising converge on similar internal organizations of tonal information, suggesting that distinguishing major from minor is functionally useful for musical prediction regardless of the specific generation mechanism.
+The probing results establish that mode is linearly decodable from intermediate activations of both MusicGen (62.1% at layer 21/48) and DiffRhythm (59.3% at block 12/24). The characteristic middle-layer peak occurs at remarkably similar relative depths—44% for MusicGen and 50% for DiffRhythm—despite radically different architectures. Autoregressive token prediction and parallel latent denoising converge on similar internal organizations of tonal information, suggesting that distinguishing major from minor is functionally useful for musical prediction regardless of the specific generation mechanism.
 
 The steering experiments confirm causal influence. Adding probe-derived directions to layer 22 activations shifts detected mode with 23% flip rate, while random directions produce negligible effects and non-optimal layers produce weak effects. This specificity establishes that the identified direction genuinely encodes mode-relevant information used during generation.
 
 The SAE analysis yields a valuable negative result. With 98% dead features and no tonal specificity among survivors, we demonstrate that sparse autoencoder methods cannot be naively transferred from language to audio. Language SAEs train on billions of tokens; our 344-clip dataset was insufficient for an 8,192-feature dictionary. This motivates future work on interpretability methods adapted to audio data regimes.
 
 Taken together, these findings demonstrate that standard interpretability tools—probes and steering—provide meaningful traction on music generation systems. The cross-architecture consistency suggests analysis techniques may transfer across the diverse landscape of current and future models. As music generation becomes increasingly prevalent in creative workflows, understanding internal representations is essential for building systems that are not only capable but controllable, transparent, and aligned with human musical intentions.
-
