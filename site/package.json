@@ -9,8 +9,13 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@mdit/plugin-katex": "^0.24.1",
     "@tailwindcss/typography": "^0.5.19",
-    "vite": "^7.2.4"
+    "katex": "^0.16.27",
+    "markdown-it": "^14.1.0",
+    "markdown-it-anchor": "^9.2.0",
+    "vite": "^7.2.4",
+    "vite-plugin-markdown": "^2.2.0"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.17",
