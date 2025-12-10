@@ -45,8 +45,8 @@ export default function staticMdPlugin() {
             let cleanContent = '';
             if (contentToken.children) {
               cleanContent = contentToken.children
-                .filter(t => t.type === 'text')
-                .map(t => t.content)
+                .filter((t) => t.type === 'text')
+                .map((t) => t.content)
                 .join(' ')
                 .trim();
             }
@@ -59,15 +59,24 @@ export default function staticMdPlugin() {
 
       const tocHtml = toc
         .map((item) => {
-          const slug = item.content.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+          const slug = item.content
+            .toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^\w-]/g, '');
           return `<a href="#${slug}" class="toc-level-${item.level}">${item.content}</a>`;
         })
         .join('\n');
 
       // Inject into HTML and remove script tag
       return html
-        .replace('<aside id="toc"></aside>', `<aside id="toc">${tocHtml}</aside>`)
-        .replace('<main id="content"></main>', `<main id="content">${content}</main>`)
+        .replace(
+          '<aside id="toc"></aside>',
+          `<aside id="toc">${tocHtml}</aside>`
+        )
+        .replace(
+          '<main id="content"></main>',
+          `<main id="content">${content}</main>`
+        )
         .replace(/<script[^>]*src="\/src\/main\.js"[^>]*><\/script>/, '');
     },
   };

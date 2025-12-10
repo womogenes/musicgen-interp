@@ -99,74 +99,30 @@ PCA visualization of peak-layer activations shows partial but incomplete separat
 
 The SAE achieved 0.0188 reconstruction MSE with 99.22% sparsity. However, 8,061 of 8,192 features (98.4%) remained dead—never activated on any input. For surviving features, we examined key distributions among top-20 activating clips. No feature showed significant mode correlation; distributions matched the global dataset.
 
-<<<<<<< HEAD
-| Metric                        | Value                  |
-| ----------------------------- | ---------------------- |
-| Dictionary size               | 8,192 (4× expansion)   |
-| Active features per sample    | 64 (TopK constraint)   |
-| Dead features                 | 8,061 (98.4%)          |
-| Reconstruction MSE            | 0.0188                 |
-| Mean feature-mode correlation | 0.02 (not significant) |
-
-_Table 2: SAE statistics reveal catastrophic underutilization of dictionary capacity. Nearly all features remain dead, and surviving features show no tonal specificity._
-=======
 | Metric | Value |
 |--------|-------|
 | Dictionary size | 8,192 |
 | Dead features | 8,061 (98.4%) |
 | Reconstruction MSE | 0.0188 |
 
+*Table 2: SAE statistics reveal catastrophic underutilization of dictionary capacity.*
+
+This failure reflects data regime mismatch. Language SAEs train on billions of diverse tokens; our SAE saw 344 usable clips from a narrow piano distribution. The 8,192-feature dictionary was overparameterized by ~20×, and homogeneous inputs provided insufficient diversity.
+
+### Activation Steering
+
 At $\alpha = 15$, 23% of originally-major clips were detected as minor. Key confidence dropped from 0.31 (baseline) to 0.24 (steered), indicating some tonal degradation but not collapse. For $|\alpha| > 15$, artifacts increased substantially.
 
 Controls confirmed specificity. Random unit vectors produced < 2% flip rate across all $\alpha$. Steering at layer 5 or 45 produced < 5% flip rate, far less than the 23% at layer 22. This rules out generic perturbation artifacts.
 
+![Steering vector weight distribution across 2048 dimensions.](../public/steering.png)
 *Figure 4: Non-uniform weights indicate mode information is concentrated in specific dimensions.*
 
 Audio samples demonstrating steering are available in `notebooks/key_steering/steering_experiments/`.
 
-<<<<<<< HEAD
-![Sorted steering vector coefficients across the 2048 dimensions of layer 22 activations. The distribution is highly non-uniform with a few large negative and positive weights.](steering.png)
-_Figure 4: Steering vector weight distribution shows sparse structure. Mode information is concentrated in specific activation dimensions rather than uniformly distributed, consistent with the success of linear probing._
-
-**Audio Examples:** Steering effects across different $\alpha$ values. Each clip shows the progression from major-biased (α=-15) through baseline (α=0) to minor-biased (α=+15).
-
-<details class="my-4">
-<summary class="cursor-pointer font-semibold">Clip 0034</summary>
-<table class="w-full my-2">
-<tr><td class="py-1">alpha = -15 (toward major)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_-15.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = -02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_-02.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = +00 (baseline)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_+00.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = +02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_+02.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = +15 (toward minor)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_+15.wav" type="audio/wav"></audio></td></tr>
-</table>
-</details>
-
-<details class="my-4">
-<summary class="cursor-pointer font-semibold">Clip 0130</summary>
-<table class="w-full my-2">
-<tr><td class="py-1">alpha = -15 (toward major)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_-15.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = -02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_-02.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = +00 (baseline)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_+00.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = +02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_+02.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = +15 (toward minor)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_+15.wav" type="audio/wav"></audio></td></tr>
-</table>
-</details>
-
-<details class="my-4">
-<summary class="cursor-pointer font-semibold">Clip 0925</summary>
-<table class="w-full my-2">
-<tr><td class="py-1">alpha = -15 (toward major)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_-15.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = -02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_-02.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = +00 (baseline)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_+00.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = +02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_+02.wav" type="audio/wav"></audio></td></tr>
-<tr><td class="py-1">alpha = +15 (toward minor)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_+15.wav" type="audio/wav"></audio></td></tr>
-</table>
-</details>
-=======
 ## Discussion
 
 The central finding is that tonal encoding is architecturally invariant. Despite different generation mechanisms—autoregressive token prediction versus parallel latent denoising—both models exhibit the same pattern: mode peaks at 44–50% depth and declines toward output. This convergence suggests distinguishing major from minor is useful for predicting musical continuations regardless of generation paradigm, consistent with the hypothesis that models learn functionally relevant representations.
->>>>>>> 039ba2f67a3a2caf5be6c4f505af407bfd503738
 
 Peak accuracies of 62% and 59% may seem modest, but context matters. Our labels come from `librosa` (~70% accurate), creating a supervision ceiling. Some clips are genuinely ambiguous between relative major/minor. And mode may be partially nonlinear. The extreme statistical significance ($p < 10^{-150}$) is the key metric—with 1,024 bootstrap samples and tight CIs, we definitively reject the null hypothesis. The modest accuracy reflects ceiling effects, not absence of signal.
 
@@ -178,11 +134,7 @@ The 23% flip rate confirms probe representations causally influence generation�
 
 These findings have practical implications for controllable music generation. The existence of linearly decodable tonal representations suggests that lightweight, training-free control is feasible. Rather than fine-tuning models on curated datasets or engineering complex conditioning mechanisms, simple activation steering may provide a path to coarse stylistic control with minimal computational overhead. For creative applications, this could enable rapid prototyping of controllable interfaces—a "mood slider" that adjusts brightness or darkness without retraining.
 
-<<<<<<< HEAD
-Peak probe accuracies of 62% and 59% may seem modest compared to classification tasks where models achieve >90% accuracy. However, these numbers must be interpreted in context. Our "ground truth" labels come from `librosa`'s automatic key detection, which itself achieves only ~70% accuracy on clean recordings and likely performs worse on short synthetic clips with potential generation artifacts. The probe cannot outperform its supervision. Additionally, some clips are genuinely ambiguous between relative major and minor keys—A minor and C major share exactly the same notes and differ only in which note receives emphasis. Finally, tonal information may be partially distributed across many dimensions or encoded in partially nonlinear ways that a simple linear classifier cannot fully recover.
-=======
 The cross-architecture consistency has broader implications. If tonal representations emerge similarly across MusicGen and DiffRhythm despite different architectures and training objectives, interpretability tools may transfer across the diverse ecosystem of music generation models. Analysis pipelines developed for one model could apply to new releases, reducing the effort required to understand and control each new system.
->>>>>>> 039ba2f67a3a2caf5be6c4f505af407bfd503738
 
 More broadly, our results demonstrate that music generation models learn structured representations supporting inspection and intervention. These are not simply black boxes producing pleasant audio—they contain organized internal states encoding musically meaningful concepts that can be read out and modified. As generative tools become prevalent in production workflows, this understanding is crucial for building systems that are not only capable but predictable and aligned with human intentions.
 
