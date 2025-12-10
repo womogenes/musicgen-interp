@@ -22,9 +22,9 @@ logger = logging.getLogger()
 
 # %%
 # Constants
-METADATA_PATH = "/home/harinit9/orcd/pool/musicgen-data-nokey-long/dataset_metadata.json"
-ACT_BATCHED_PATH = Path("/home/wyf/orcd/pool/musicgen-activations-nokey-long/activations_pooled")
-ACTS_BY_LAYER_PATH = Path("/home/wyf/orcd/pool/musicgen-activations-nokey-long/acts_by_layer")
+METADATA_PATH = "/home/harinit9/orcd/pool/musicgen-data-nokey/dataset_metadata.json"
+ACT_BATCHED_PATH = Path("/home/wyf/orcd/pool/musicgen-activations-nokey/activations_pooled")
+ACTS_BY_LAYER_PATH = Path("/home/wyf/orcd/pool/musicgen-activations-nokey/acts_by_layer")
 
 # %%
 with open(METADATA_PATH) as fin:
@@ -51,8 +51,6 @@ def train_linear_probe(
         X_pooled = np.max(acts, axis=1)
     else:
         X_pooled = np.mean(acts, axis=1)
-
-    X_pooled = acts.reshape(acts.shape[0], -1)
 
     # Normalize per feature
     logger.info("Normalizing...")
