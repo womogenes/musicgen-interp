@@ -1,4 +1,5 @@
 # Interpretability of Large Music Generation Models Using Linear Probes
+
 William Feng, Harini Thiagarajan, Michelle Wei
 
 # Introduction
@@ -86,7 +87,7 @@ Two control experiments verified that observed effects were specific to the prob
 MusicGen probe accuracy rose from near-chance in early layers (layer 0: 56.3%) through the middle of the network to peak at layer 21 with 62.1% ± 0.5% test accuracy over 1,024 splits, then declined toward the output (layer 47: 57.2%). DiffRhythm showed qualitatively identical patterns across its sampled DiT blocks, peaking at block 12 with 59.3% ± 0.6% accuracy.
 
 ![Linear probe accuracy across DiffRhythm transformer blocks with 95% confidence intervals. Test accuracy peaks at block 12 (59.3%), corresponding to 50% of network depth, significantly above the 50% random baseline shown as a dashed line.](linearprobdr.png)
-*Figure 1: Layer-wise probe accuracy for DiffRhythm demonstrates the characteristic middle-layer bump observed in NLP interpretability. Tonal information peaks at intermediate depth and declines toward the output.*
+_Figure 1: Layer-wise probe accuracy for DiffRhythm demonstrates the characteristic middle-layer bump observed in NLP interpretability. Tonal information peaks at intermediate depth and declines toward the output._
 
 The statistical significance of these results is overwhelming. Computing one-sample $t$-statistics against the 50% null hypothesis:
 
@@ -94,38 +95,38 @@ $$t = \frac{\bar{a} - 0.5}{s/\sqrt{n}}$$
 
 yields $t \approx 75.2$ for MusicGen and $t \approx 48.1$ for DiffRhythm. The corresponding $p$-values are smaller than $10^{-150}$—these are not sampling artifacts or chance fluctuations, but genuine signals that tonal information is encoded in intermediate representations.
 
-| Property | MusicGen | DiffRhythm |
-|----------|----------|------------|
-| Architecture | Autoregressive transformer | Diffusion transformer |
-| Total layers/blocks | 48 | 24 |
-| Peak test accuracy | 62.1% ± 0.5% | 59.3% ± 0.6% |
-| Peak layer (absolute) | 21 | 12 |
-| Peak layer (relative depth) | 44% | 50% |
-| $t$-statistic vs. chance | 75.2 | 48.1 |
+| Property                    | MusicGen                   | DiffRhythm            |
+| --------------------------- | -------------------------- | --------------------- |
+| Architecture                | Autoregressive transformer | Diffusion transformer |
+| Total layers/blocks         | 48                         | 24                    |
+| Peak test accuracy          | 62.1% ± 0.5%               | 59.3% ± 0.6%          |
+| Peak layer (absolute)       | 21                         | 12                    |
+| Peak layer (relative depth) | 44%                        | 50%                   |
+| $t$-statistic vs. chance    | 75.2                       | 48.1                  |
 
-*Table 1: Cross-architecture comparison reveals remarkably similar tonal encoding patterns despite radically different generation mechanisms and training objectives.*
+_Table 1: Cross-architecture comparison reveals remarkably similar tonal encoding patterns despite radically different generation mechanisms and training objectives._
 
 PCA visualization of activations at peak layers reveals partial but incomplete separation between major and minor classes in both models, consistent with the above-chance but imperfect probe accuracy.
 
 ![PCA of MusicGen layer 22 activations colored by detected mode (major in blue, minor in red). Partial separation is visible along the first principal component.](pcamode.png)
-*Figure 2: PCA visualization shows partial major/minor separation in MusicGen layer 22 activations. The substantial class overlap explains the 62% accuracy ceiling—perfect separation would yield much higher accuracy.*
+_Figure 2: PCA visualization shows partial major/minor separation in MusicGen layer 22 activations. The substantial class overlap explains the 62% accuracy ceiling—perfect separation would yield much higher accuracy._
 
 ![PCA of DiffRhythm block 12 activations colored by detected mode (major in blue, minor in orange). Similar partial separation pattern as MusicGen.](pcakeydr.png)
-*Figure 3: DiffRhythm block 12 shows similar PCA structure to MusicGen, supporting the hypothesis that tonal representations emerge similarly across architectures.*
+_Figure 3: DiffRhythm block 12 shows similar PCA structure to MusicGen, supporting the hypothesis that tonal representations emerge similarly across architectures._
 
 ## Sparse Autoencoder Analysis: An Informative Failure
 
 The SAE achieved reconstruction MSE of 0.0188 with 99.22% sparsity—the TopK constraint successfully enforced that only 64 of 8192 features activate per sample. However, 8,061 of 8,192 dictionary features (98.4%) remained "dead"—they never activated on any input across the entire dataset.
 
-| Metric | Value |
-|--------|-------|
-| Dictionary size | 8,192 (4× expansion) |
-| Active features per sample | 64 (TopK constraint) |
-| Dead features | 8,061 (98.4%) |
-| Reconstruction MSE | 0.0188 |
+| Metric                        | Value                  |
+| ----------------------------- | ---------------------- |
+| Dictionary size               | 8,192 (4× expansion)   |
+| Active features per sample    | 64 (TopK constraint)   |
+| Dead features                 | 8,061 (98.4%)          |
+| Reconstruction MSE            | 0.0188                 |
 | Mean feature-mode correlation | 0.02 (not significant) |
 
-*Table 2: SAE statistics reveal catastrophic underutilization of dictionary capacity. Nearly all features remain dead, and surviving features show no tonal specificity.*
+_Table 2: SAE statistics reveal catastrophic underutilization of dictionary capacity. Nearly all features remain dead, and surviving features show no tonal specificity._
 
 For the 131 surviving active features, we examined the key distribution among their top-20 activating clips. No feature showed statistically significant association with specific keys or modes—the distributions closely matched the global dataset distribution, indicating that these features capture general activation patterns rather than tonal content.
 
@@ -140,9 +141,42 @@ At steering strength $\alpha = 15$, 23% of clips originally detected as major we
 Control experiments confirmed that these effects are specific to the probe-derived direction and localized to tonally informative layers. Replacing $v_\text{minor}$ with random unit vectors of the same norm produced flip rates below 2% across all $\alpha$ values tested—statistically indistinguishable from zero. Applying the original $v_\text{minor}$ at layer 5 (early network) or layer 45 (late network) produced flip rates below 5%, far less than the 23% observed at layer 22.
 
 ![Sorted steering vector coefficients across the 2048 dimensions of layer 22 activations. The distribution is highly non-uniform with a few large negative and positive weights.](steering.png)
-*Figure 4: Steering vector weight distribution shows sparse structure. Mode information is concentrated in specific activation dimensions rather than uniformly distributed, consistent with the success of linear probing.*
+_Figure 4: Steering vector weight distribution shows sparse structure. Mode information is concentrated in specific activation dimensions rather than uniformly distributed, consistent with the success of linear probing._
 
-Audio samples demonstrating steering effects across different $\alpha$ values are available in the repository under `notebooks/key_steering/steering_experiments/`. Informal listening confirms that steered generations at moderate $\alpha$ retain musical coherence while exhibiting perceptible shifts in tonal character.
+**Audio Examples:** Steering effects across different $\alpha$ values. Each clip shows the progression from major-biased (α=-15) through baseline (α=0) to minor-biased (α=+15).
+
+<details class="my-4">
+<summary class="cursor-pointer font-semibold">Clip 0034</summary>
+<table class="w-full my-2">
+<tr><td class="py-1">alpha = -15 (toward major)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_-15.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = -02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_-02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +00 (baseline)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_+00.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_+02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +15 (toward minor)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0034/alpha_+15.wav" type="audio/wav"></audio></td></tr>
+</table>
+</details>
+
+<details class="my-4">
+<summary class="cursor-pointer font-semibold">Clip 0130</summary>
+<table class="w-full my-2">
+<tr><td class="py-1">alpha = -15 (toward major)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_-15.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = -02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_-02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +00 (baseline)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_+00.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_+02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +15 (toward minor)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0130/alpha_+15.wav" type="audio/wav"></audio></td></tr>
+</table>
+</details>
+
+<details class="my-4">
+<summary class="cursor-pointer font-semibold">Clip 0925</summary>
+<table class="w-full my-2">
+<tr><td class="py-1">alpha = -15 (toward major)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_-15.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = -02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_-02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +00 (baseline)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_+00.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +02</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_+02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +15 (toward minor)</td><td><audio controls class="w-full max-w-sm"><source src="/steering_experiments/clip_0925/alpha_+15.wav" type="audio/wav"></audio></td></tr>
+</table>
+</details>
 
 # Discussion
 
@@ -154,7 +188,7 @@ This finding has practical implications. Interpretability tools and intuitions d
 
 ## Why Accuracy Is Modest but Meaningful
 
-Peak probe accuracies of 62% and 59% may seem modest compared to classification tasks where models achieve >90% accuracy. However, these numbers must be interpreted in context. Our "ground truth" labels come from `librosa`'s automatic key detection, which itself achieves only ~70% accuracy on clean recordings and likely performs worse on short synthetic clips with potential generation artifacts. The probe cannot outperform its supervision. Additionally, some clips are genuinely ambiguous between relative major and minor keys—A minor and C major share exactly the same notes and differ only in which note receives emphasis. Finally, tonal information may be partially distributed across many dimensions or encoded in partially nonlinear ways that a simple linear classifier cannot fully recover. 
+Peak probe accuracies of 62% and 59% may seem modest compared to classification tasks where models achieve >90% accuracy. However, these numbers must be interpreted in context. Our "ground truth" labels come from `librosa`'s automatic key detection, which itself achieves only ~70% accuracy on clean recordings and likely performs worse on short synthetic clips with potential generation artifacts. The probe cannot outperform its supervision. Additionally, some clips are genuinely ambiguous between relative major and minor keys—A minor and C major share exactly the same notes and differ only in which note receives emphasis. Finally, tonal information may be partially distributed across many dimensions or encoded in partially nonlinear ways that a simple linear classifier cannot fully recover.
 
 The extreme statistical significance ($p < 10^{-150}$) is the more important metric than absolute accuracy. With 1,024 bootstrap samples and tight confidence intervals, we can definitively reject the null hypothesis that these representations contain no tonal information. The modest accuracy reflects ceiling effects from label noise and inherent ambiguity, not absence of signal.
 
