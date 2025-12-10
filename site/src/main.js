@@ -6,8 +6,10 @@ document.getElementById('content').innerHTML = html;
 // Build TOC HTML from array of objects
 const tocHtml = toc
   .map(item => {
-    const slug = item.content.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
-    return `<a href="#${slug}" class="toc-level-${item.level}">${item.content}</a>`;
+    // Clean content - remove any HTML like anchor links
+    const cleanContent = item.content.replace(/<[^>]*>/g, '').trim();
+    const slug = cleanContent.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+    return `<a href="#${slug}" class="toc-level-${item.level}">${cleanContent}</a>`;
   })
   .join('');
 document.getElementById('toc').innerHTML = tocHtml;
