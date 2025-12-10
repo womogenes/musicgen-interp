@@ -37,7 +37,7 @@ else:
     CHECKPOINT_EVERY = 5
 
 # Output directory
-OUTPUT_DIR = Path("/home/harinit9/orcd/pool/diffrhythm")
+OUTPUT_DIR = Path("/home/wyf/orcd/pool/diffrhythm")
 AUDIO_DIR = OUTPUT_DIR / "audio"
 AUDIO_CHUNKS_DIR = OUTPUT_DIR / "audio_chunks"
 ACTIVATIONS_DIR = OUTPUT_DIR / "activations"
@@ -461,8 +461,8 @@ def main():
         print("⚠️ CUDA not available; this will be very slow on CPU.")
 
     # Resume info - start at clip 10
-    total_so_far = max(10, load_progress())  # Already have 10 samples
-    clip_id = max(10, get_starting_clip_id())  # Start at clip 0010
+    total_so_far = max(50, load_progress())  # Already have 10 samples
+    clip_id = max(50, get_starting_clip_id())  # Start at clip 0010
     print(f"Resuming from total_so_far={total_so_far}, next clip_id={clip_id}")
 
     if total_so_far >= TARGET_TOTAL_SAMPLES:
@@ -513,10 +513,10 @@ def main():
                 chunk_id = f"{clip_id_str}_chunk{chunk_idx:02d}"
 
                 # Save chunk audio (scipy expects shape [samples, channels])
-                chunk_wav_path = AUDIO_CHUNKS_DIR / f"{chunk_id}.wav"
-                chunk_int16 = (chunk_tensor * 32767).clamp(-32768, 32767).to(torch.int16)
-                chunk_np = chunk_int16.cpu().numpy().T  # [channels, samples] -> [samples, channels]
-                wavfile.write(str(chunk_wav_path), SAMPLING_RATE, chunk_np)
+                # chunk_wav_path = AUDIO_CHUNKS_DIR / f"{chunk_id}.wav"
+                # chunk_int16 = (chunk_tensor * 32767).clamp(-32768, 32767).to(torch.int16)
+                # chunk_np = chunk_int16.cpu().numpy().T  # [channels, samples] -> [samples, channels]
+                # wavfile.write(str(chunk_wav_path), SAMPLING_RATE, chunk_np)
 
                 # Save chunk activations
                 chunk_act_path = ACTIVATIONS_DIR / f"{chunk_id}.pt"
@@ -539,7 +539,7 @@ def main():
                     'start_time': chunk_start,
                     'end_time': chunk_end,
                     'duration': chunk_end - chunk_start,
-                    'audio_path': str(chunk_wav_path),
+                    # 'audio_path': str(chunk_wav_path),
                     'activations_path': str(chunk_act_path),
                     'key_info': key_info,
                     'label_key': key_info['key'],

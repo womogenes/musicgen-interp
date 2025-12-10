@@ -11,5 +11,5 @@
 
 # Run from diffrhythm_interp where pyproject.toml lives
 module load ffmpeg
-cd /home/harinit9/musicgen-interp/diffrhythm_interp
+cd /home/wyf/musicgen-interp/diffrhythm_interp
 uv run scripts/make_dataset.py "$@"
