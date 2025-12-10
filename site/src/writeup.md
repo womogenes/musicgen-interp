@@ -118,7 +118,40 @@ Controls confirmed specificity. Random unit vectors produced < 2% flip rate acro
 ![Steering vector weight distribution across 2048 dimensions.](../public/steering.png)
 *Figure 4: Non-uniform weights indicate mode information is concentrated in specific dimensions.*
 
-Audio samples demonstrating steering are available in `notebooks/key_steering/steering_experiments/`.
+**Audio Examples:** Steering effects across different $\alpha$ values. Each clip shows the progression from major-biased (α=-15) through baseline (α=0) to minor-biased (α=+15).
+
+<details class="my-4">
+<summary class="cursor-pointer font-semibold">Clip 0034</summary>
+<table class="w-full my-2">
+<tr><td class="py-1">alpha = -15 (toward major)</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0034/alpha_-15.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = -02</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0034/alpha_-02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +00 (baseline)</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0034/alpha_+00.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +02</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0034/alpha_+02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +15 (toward minor)</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0034/alpha_+15.wav" type="audio/wav"></audio></td></tr>
+</table>
+</details>
+
+<details class="my-4">
+<summary class="cursor-pointer font-semibold">Clip 0130</summary>
+<table class="w-full my-2">
+<tr><td class="py-1">alpha = -15 (toward major)</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0130/alpha_-15.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = -02</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0130/alpha_-02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +00 (baseline)</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0130/alpha_+00.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +02</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0130/alpha_+02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +15 (toward minor)</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0130/alpha_+15.wav" type="audio/wav"></audio></td></tr>
+</table>
+</details>
+
+<details class="my-4">
+<summary class="cursor-pointer font-semibold">Clip 0925</summary>
+<table class="w-full my-2">
+<tr><td class="py-1">alpha = -15 (toward major)</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0925/alpha_-15.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = -02</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0925/alpha_-02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +00 (baseline)</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0925/alpha_+00.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +02</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0925/alpha_+02.wav" type="audio/wav"></audio></td></tr>
+<tr><td class="py-1">alpha = +15 (toward minor)</td><td><audio controls class="w-full max-w-sm"><source src="./steering_experiments/clip_0925/alpha_+15.wav" type="audio/wav"></audio></td></tr>
+</table>
+</details>
 
 ## Discussion
 
